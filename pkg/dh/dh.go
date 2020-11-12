@@ -2,10 +2,11 @@ package dh
 
 import (
 	"bytes"
+	"crypto/aes"
 	"crypto/cipher"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
-	"crypto/aes"
 	"fmt"
 	"io"
 	"log"
@@ -137,6 +138,13 @@ func (c ClientC1) decryptMsg(ciphertext []byte) []byte {
 	mode.CryptBlocks(ciphertext, plaintext)
 
 	return plaintext
+}
+
+
+func (c ClientC1) calcHmacSha256(msg []byte) []byte {
+	mac := hmac.New(sha256.New, c.aesKey)
+	mac.Write(msg)
+	return mac.Sum(nil)
 }
 
 func normalFlowTest() bool {
@@ -314,4 +322,113 @@ func gp1FlowTest() bool {
 	}
 
 	return true
+}
+
+
+func factorize(toFactor *big.Int, maxIndex int64) map[int64]int64 {
+	factors := make(map[int64]int64)
+	var j int64 = 0
+	zero := big.NewInt(0)
+
+	for i := int64(2); i < maxIndex; i++ {
+		if new(big.Int).Mod(toFactor, big.NewInt(i)).Cmp(zero) == 0 {
+			factors[j] = i
+			j++
+		}
+	}
+	return factors
+}
+
+
+func calculateH(p *big.Int, r *big.Int) *big.Int{
+	power := new(big.Int).Div(new(big.Int).Sub(p, big.NewInt(1)), r)
+	random, _ := genBigNum(p)
+	h := new(big.Int).Exp(random, power, p)
+	for h.Cmp(big.NewInt(1)) == 0 {
+		random, _ := genBigNum(p)
+		h = new(big.Int).Exp(random, power, p)
+	}
+	return h
+}
+
+func smallSubGroupAttack() bool {
+	type pair struct {
+		base int64
+		mode int64
+	}
+	p := bigFromHex("8977c3217da1f838b8d24b4a790de8fc8e35ad5483e463028ef9bbf9af23a9bd1231eba9ac7e44363d8311d610b09aa224a023268ee8a60ac484fd9381962563")
+	g := bigFromHex("572aff4a93ec6214c1036c62e1818fe5e4e1d6db635c1b12d9572203c47d241a0e543a89b0b12ba61062411fcf3d29c6ab8c3ce6dac7d2c9f7f0ebd3b7878aaf")
+	q := bigFromHex("b1b914de773dfcc8be82251a2ab4f339")
+
+	if new(big.Int).Exp(g, q, p).Cmp(big.NewInt(1)) != 0 {
+		log.Fatal("g^q != 1")
+	}
+	j := new(big.Int).Div(new(big.Int).Sub(p, big.NewInt(1)), q)
+	//println(j.Int64(), bigFromHex("c603c3a480aeabfebbeace077fcd6f114c33cfd660fa70ee6b2d4859205ee6ea36ca0a2774c44bcd5b41a3fe99428672").Int64())
+	if j.Cmp(bigFromHex("c603c3a480aeabfebbeace077fcd6f114c33cfd660fa70ee6b2d4859205ee6ea36ca0a2774c44bcd5b41a3fe99428672")) != 0 {
+		log.Fatal("problem with j")
+	}
+
+	//maxIndexBig = new(big.Int).Sqrt(toFactor)
+	// factors aren't big nums
+	factors := factorize(j, int64(65536))
+
+
+	//for i := 0; i < len(factors); i++ {
+	//	println(factors[uint64(i)].Int64())
+	//}
+
+	if len(factors) == 0 {
+		log.Fatal("empty factors")
+	}
+
+	eve := new(ClientC1)
+	eve.init(p, g)
+
+	bob := new(ClientC1)
+	bob.init(p, g)
+
+	reducedVals := make(map[int64]pair)
+	reducedValsSize := int64(0)
+
+	for i := 0; i < len(factors); i++ {
+		r := factors[int64(i)]
+		h := calculateH(p, big.NewInt(r))
+
+		bob.generateSessionKey(h)
+
+		msg := []byte("exampleplaintext")
+
+		encryptedByBob := bob.encryptMsg(msg)
+		msgMac := bob.calcHmacSha256(encryptedByBob)
+
+		for j := int64(0); j < r; j++ {
+			seed := new(big.Int).Exp(h, big.NewInt(j), p)
+			h := sha256.New()
+			h.Write(seed.Bytes())
+			sessionKey := h.Sum(nil)[:16]
+			mac := hmac.New(sha256.New, sessionKey)
+			mac.Write(encryptedByBob)
+			if hmac.Equal(msgMac, mac.Sum(nil)) {
+				reducedVals[reducedValsSize] = pair{j , r}
+				reducedValsSize++
+			}
+		}
+	}
+
+	muls := big.NewInt(1)
+	for i := int64(0); int(i) < len(factors); i++ {
+		//println(reducedVals[i].base, reducedVals[i].mode)
+		muls = new(big.Int).Mul(big.NewInt(reducedVals[i].mode), muls)
+	}
+
+	if muls.Cmp(q) == 1 {
+		return true
+	}
+
+
+	//if bytes.Compare(alice.decryptMsg(encryptedByBob), bob.decryptMsg(encryptedByAlice)) != 0 {
+	//	return false
+	//}
+	return false
 }

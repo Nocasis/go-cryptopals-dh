@@ -28,4 +28,8 @@ func TestDH(t *testing.T) {
 	if !gp1FlowTest() {
 		t.Error("g==p-1 attack failed")
 	}
+
+	if !smallSubGroupAttack() {
+		t.Error("small subgroup attack failed")
+	}
 }
