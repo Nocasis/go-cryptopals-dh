@@ -10,23 +10,9 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"math/big"
 )
-
-
-func genBigNum(max *big.Int) (n *big.Int, err error){
-	var x *big.Int
-	x, err = rand.Int(rand.Reader, max)
-	if err != nil {
-		return nil, err
-	}
-	return x, nil
-}
-
-func bigFromHex(s string) *big.Int {
-	n, _ := new(big.Int).SetString(s, 16)
-	return n
-}
 
 type EntityDH struct {
 	privateKey   *big.Int
@@ -35,11 +21,15 @@ type EntityDH struct {
 	generic	*big.Int
 }
 
-func (e *EntityDH) init(p *big.Int, g *big.Int) {
+func (e *EntityDH) init(p *big.Int, g *big.Int, q *big.Int) {
 	e.power = p
 	e.generic = g
 	var err error
-	e.privateKey, err = genBigNum(p)
+	if q.Cmp(big.NewInt(0)) == 0 {
+		e.privateKey, err = genBigNum(big.NewInt(math.MaxInt64))
+	} else {
+		e.privateKey, err = genBigNum(q)
+	}
 	if err != nil {
 		log.Fatal("Error with generation of private key")
 	}
@@ -72,12 +62,13 @@ func sessionCmpTest() bool {
 		"bb9ed529077096966d670c354e4abc9804f1746c08ca237327fff" +
 		"fffffffffffff")
 	g := big.NewInt(2)
+	q := big.NewInt(0)
 
 	alice := new(EntityDH)
-	alice.init(p, g)
+	alice.init(p, g, q)
 
 	bob := new(EntityDH)
-	bob.init(p, g)
+	bob.init(p, g, q)
 
 	if bytes.Compare(alice.getSessionKey(bob.publicNum), bob.getSessionKey(alice.publicNum)) != 0 {
 		return false
@@ -87,21 +78,21 @@ func sessionCmpTest() bool {
 
 
 type ClientC1 struct {
-	dhEntity EntityDH
-	aesKey   []byte
+	dhEntity     EntityDH
+	symmetricKey []byte
 }
 
-func (c *ClientC1) init(p *big.Int, g *big.Int) {
-	c.dhEntity.init(p, g)
+func (c *ClientC1) init(p *big.Int, g *big.Int, q *big.Int) {
+	c.dhEntity.init(p, g, q)
 }
 
 
 func (c *ClientC1) generateSessionKey(pub *big.Int) {
-	c.aesKey = c.dhEntity.getSessionKey(pub)[:16]
+	c.symmetricKey = c.dhEntity.getSessionKey(pub)
 }
 
 func (c ClientC1) encryptMsg(msg []byte) []byte {
-	block, err := aes.NewCipher(c.aesKey)
+	block, err := aes.NewCipher(c.symmetricKey)
 	if err != nil {
 		log.Fatal("Error with aes initialization")
 	}
@@ -118,7 +109,7 @@ func (c ClientC1) encryptMsg(msg []byte) []byte {
 }
 
 func (c ClientC1) decryptMsg(ciphertext []byte) []byte {
-	block, err := aes.NewCipher(c.aesKey)
+	block, err := aes.NewCipher(c.symmetricKey)
 	if err != nil {
 		log.Fatal("Error with aes initialization")
 	}
@@ -142,7 +133,7 @@ func (c ClientC1) decryptMsg(ciphertext []byte) []byte {
 
 
 func (c ClientC1) calcHmacSha256(msg []byte) []byte {
-	mac := hmac.New(sha256.New, c.aesKey)
+	mac := hmac.New(sha256.New, c.symmetricKey)
 	mac.Write(msg)
 	return mac.Sum(nil)
 }
@@ -150,12 +141,13 @@ func (c ClientC1) calcHmacSha256(msg []byte) []byte {
 func normalFlowTest() bool {
 	p := bigFromHex("ffffffffffffffffffffffffffff")
 	g := big.NewInt(2)
+	q := big.NewInt(0)
 
 	alice := new(ClientC1)
-	alice.init(p, g)
+	alice.init(p, g, q)
 
 	bob := new(ClientC1)
-	bob.init(p, g)
+	bob.init(p, g, q)
 
 	alice.generateSessionKey(bob.dhEntity.publicNum)
 	bob.generateSessionKey(alice.dhEntity.publicNum)
@@ -176,7 +168,7 @@ func (c ClientC1) melloryDecrypt(ciphertext []byte, seedNum int64) []byte {
 	seed := big.NewInt(seedNum)
 	h := sha256.New()
 	h.Write(seed.Bytes())
-	aesKey := h.Sum(nil)[:16]
+	aesKey := h.Sum(nil)
 
 	block, err := aes.NewCipher(aesKey)
 	if err != nil {
@@ -203,12 +195,13 @@ func (c ClientC1) melloryDecrypt(ciphertext []byte, seedNum int64) []byte {
 func mitmFlowTest() bool {
 	p := bigFromHex("ffffffffffffffffffffffffffff")
 	g := big.NewInt(2)
+	q := big.NewInt(0)
 
 	alice := new(ClientC1)
-	alice.init(p, g)
+	alice.init(p, g, q)
 
 	bob := new(ClientC1)
-	bob.init(p, g)
+	bob.init(p, g, q)
 
 	mellory := new(ClientC1)
 
@@ -232,12 +225,13 @@ func mitmFlowTest() bool {
 func g1FlowTest() bool {
 	p := bigFromHex("ffffffffffffffffffffffffffff")
 	g := big.NewInt(1)
+	q := big.NewInt(0)
 
 	alice := new(ClientC1)
-	alice.init(p, g)
+	alice.init(p, g, q)
 
 	bob := new(ClientC1)
-	bob.init(p, g)
+	bob.init(p, g, q)
 
 	mellory := new(ClientC1)
 
@@ -261,12 +255,13 @@ func g1FlowTest() bool {
 func gpFlowTest() bool {
 	p := big.NewInt(25566665)
 	g:= big.NewInt(25566665)
+	q:= big.NewInt(0)
 
 	alice := new(ClientC1)
-	alice.init(p, g)
+	alice.init(p, g, q)
 
 	bob := new(ClientC1)
-	bob.init(p, g)
+	bob.init(p, g, q)
 
 	mellory := new(ClientC1)
 
@@ -290,12 +285,13 @@ func gpFlowTest() bool {
 func gp1FlowTest() bool {
 	p := big.NewInt(25566665)
 	g:= big.NewInt(25566665-1)
+	q:= big.NewInt(0)
 
 	alice := new(ClientC1)
-	alice.init(p, g)
+	alice.init(p, g, q)
 
 	bob := new(ClientC1)
-	bob.init(p, g)
+	bob.init(p, g, q)
 
 	mellory := new(ClientC1)
 
@@ -324,38 +320,21 @@ func gp1FlowTest() bool {
 	return true
 }
 
-
-func factorize(toFactor *big.Int, maxIndex int64) map[int64]int64 {
-	factors := make(map[int64]int64)
-	var j int64 = 0
-	zero := big.NewInt(0)
-
-	for i := int64(2); i < maxIndex; i++ {
-		if new(big.Int).Mod(toFactor, big.NewInt(i)).Cmp(zero) == 0 {
-			factors[j] = i
-			j++
-		}
-	}
-	return factors
-}
-
-
 func calculateH(p *big.Int, r *big.Int) *big.Int{
 	power := new(big.Int).Div(new(big.Int).Sub(p, big.NewInt(1)), r)
-	random, _ := genBigNum(p)
-	h := new(big.Int).Exp(random, power, p)
+
+	h := big.NewInt(1)
 	for h.Cmp(big.NewInt(1)) == 0 {
 		random, _ := genBigNum(p)
+		if random.Cmp(big.NewInt(0)) == 0 {
+			random = random.Add(random, big.NewInt(1))
+		}
 		h = new(big.Int).Exp(random, power, p)
 	}
 	return h
 }
 
 func smallSubGroupAttack() bool {
-	type pair struct {
-		base int64
-		mode int64
-	}
 	p := bigFromHex("8977c3217da1f838b8d24b4a790de8fc8e35ad5483e463028ef9bbf9af23a9bd1231eba9ac7e44363d8311d610b09aa224a023268ee8a60ac484fd9381962563")
 	g := bigFromHex("572aff4a93ec6214c1036c62e1818fe5e4e1d6db635c1b12d9572203c47d241a0e543a89b0b12ba61062411fcf3d29c6ab8c3ce6dac7d2c9f7f0ebd3b7878aaf")
 	q := bigFromHex("b1b914de773dfcc8be82251a2ab4f339")
@@ -364,71 +343,73 @@ func smallSubGroupAttack() bool {
 		log.Fatal("g^q != 1")
 	}
 	j := new(big.Int).Div(new(big.Int).Sub(p, big.NewInt(1)), q)
-	//println(j.Int64(), bigFromHex("c603c3a480aeabfebbeace077fcd6f114c33cfd660fa70ee6b2d4859205ee6ea36ca0a2774c44bcd5b41a3fe99428672").Int64())
 	if j.Cmp(bigFromHex("c603c3a480aeabfebbeace077fcd6f114c33cfd660fa70ee6b2d4859205ee6ea36ca0a2774c44bcd5b41a3fe99428672")) != 0 {
 		log.Fatal("problem with j")
 	}
 
-	//maxIndexBig = new(big.Int).Sqrt(toFactor)
 	// factors aren't big nums
 	factors := factorize(j, int64(65536))
-
-
-	//for i := 0; i < len(factors); i++ {
-	//	println(factors[uint64(i)].Int64())
-	//}
-
 	if len(factors) == 0 {
 		log.Fatal("empty factors")
 	}
 
 	eve := new(ClientC1)
-	eve.init(p, g)
+	eve.init(p, g, q)
 
 	bob := new(ClientC1)
-	bob.init(p, g)
+	bob.init(p, g, q)
 
-	reducedVals := make(map[int64]pair)
-	reducedValsSize := int64(0)
-
+	var reducedModes, reducedBases []*big.Int
 	for i := 0; i < len(factors); i++ {
-		r := factors[int64(i)]
-		h := calculateH(p, big.NewInt(r))
+		r := factors[i]
 
+		// Step #1
+		h := calculateH(p, r)
+
+		// Step #2,3
 		bob.generateSessionKey(h)
-
 		msg := []byte("exampleplaintext")
-
 		encryptedByBob := bob.encryptMsg(msg)
 		msgMac := bob.calcHmacSha256(encryptedByBob)
 
-		for j := int64(0); j < r; j++ {
+		// Step #4
+		for j := int64(1); j <= r.Int64(); j++ {
 			seed := new(big.Int).Exp(h, big.NewInt(j), p)
 			h := sha256.New()
 			h.Write(seed.Bytes())
-			sessionKey := h.Sum(nil)[:16]
+			sessionKey := h.Sum(nil)
 			mac := hmac.New(sha256.New, sessionKey)
+
 			mac.Write(encryptedByBob)
 			if hmac.Equal(msgMac, mac.Sum(nil)) {
-				reducedVals[reducedValsSize] = pair{j , r}
-				reducedValsSize++
+				reducedModes = append(reducedModes, r)
+				reducedBases = append(reducedBases, big.NewInt(j))
+				continue
 			}
 		}
 	}
 
-	muls := big.NewInt(1)
+	tmpMul := big.NewInt(1)
 	for i := int64(0); int(i) < len(factors); i++ {
-		//println(reducedVals[i].base, reducedVals[i].mode)
-		muls = new(big.Int).Mul(big.NewInt(reducedVals[i].mode), muls)
+		if reducedModes == nil {
+			log.Fatal("Reduced modes is nil")
+		}
+		//fmt.Printf("ri = %d , bi = %d\n", reducedModes[i].Uint64(), reducedBases[i].Uint64())
+		tmpMul = new(big.Int).Mul(reducedModes[i], tmpMul)
 	}
 
-	if muls.Cmp(q) == 1 {
+	if tmpMul.Cmp(q) != 1 { // (r1*r2*...*rn) <= q
+		return false
+	}
+
+	x, _, err := crt(reducedBases, reducedModes)
+	if err != nil {
+		log.Fatal("Problem with Chinese Remainder Theorem")
+	}
+	if bob.dhEntity.privateKey.Cmp(x) == 0 {
 		return true
 	}
 
-
-	//if bytes.Compare(alice.decryptMsg(encryptedByBob), bob.decryptMsg(encryptedByAlice)) != 0 {
-	//	return false
-	//}
+	log.Fatal("Failed in the end of small subgroup attack")
 	return false
 }

@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestDH(t *testing.T) {
+func TestEasyDhAttack(t *testing.T) {
 	if !sessionCmpTest()  {
 		t.Error("session keys is not equal")
 	}
@@ -29,6 +29,12 @@ func TestDH(t *testing.T) {
 		t.Error("g==p-1 attack failed")
 	}
 
+	if !smallSubGroupAttack() {
+		t.Error("small subgroup attack failed")
+	}
+}
+
+func TestSmallSubGroupAttack(t *testing.T) {
 	if !smallSubGroupAttack() {
 		t.Error("small subgroup attack failed")
 	}
