@@ -3,12 +3,12 @@ package dh
 import (
 	"crypto/rand"
 	"fmt"
+	"log"
 	"math/big"
 )
 
-func genBigNum(max *big.Int) (n *big.Int, err error){
-	var x *big.Int
-	x, err = rand.Int(rand.Reader, max)
+func genBigNum(max *big.Int) (n *big.Int, err error) {
+	x, err := rand.Int(rand.Reader, max)
 	if err != nil {
 		return nil, err
 	}
@@ -16,7 +16,11 @@ func genBigNum(max *big.Int) (n *big.Int, err error){
 }
 
 func bigFromHex(s string) *big.Int {
-	n, _ := new(big.Int).SetString(s, 16)
+	n, success := new(big.Int).SetString(s, 16)
+	if success != true {
+		log.Panic("Fail in bigFromHex functions")
+		return nil
+	}
 	return n
 }
 

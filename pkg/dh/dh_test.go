@@ -4,16 +4,16 @@ import (
 	"testing"
 )
 
-func TestEasyDhAttack(t *testing.T) {
-	if !sessionCmpTest()  {
+func TestEasyDHAttack(t *testing.T) {
+	if !sessionCmpTest() {
 		t.Error("session keys is not equal")
 	}
 
-	if !normalFlowTest()  {
+	if !normalFlowTest() {
 		t.Error("normal flow failed")
 	}
 
-	if !mitmFlowTest()  {
+	if !mitmFlowTest() {
 		t.Error("mitm attack failed")
 	}
 

@@ -15,10 +15,10 @@ import (
 )
 
 type EntityDH struct {
-	privateKey   *big.Int
-	publicNum    *big.Int
-	power	*big.Int
-	generic	*big.Int
+	privateKey *big.Int
+	publicKey  *big.Int
+	power      *big.Int
+	generic    *big.Int
 }
 
 func (e *EntityDH) init(p *big.Int, g *big.Int, q *big.Int) {
@@ -33,7 +33,7 @@ func (e *EntityDH) init(p *big.Int, g *big.Int, q *big.Int) {
 	if err != nil {
 		log.Fatal("Error with generation of private key")
 	}
-	e.publicNum = new(big.Int).Exp(e.generic, e.privateKey, e.power)
+	e.publicKey = new(big.Int).Exp(e.generic, e.privateKey, e.power)
 }
 
 func (e EntityDH) getSessionKey(pubNum *big.Int) (session []byte) {
@@ -48,9 +48,8 @@ func (e EntityDH) getSessionKey(pubNum *big.Int) (session []byte) {
 }
 
 func (e EntityDH) debugPrint() {
-	fmt.Printf("privateKey: %v, publicNum: %v, power: %v, generic: %v.\n", e.privateKey, e.publicNum, e.power, e.generic)
+	fmt.Printf("privateKey: %v, publicKey: %v, power: %v, generic: %v.\n", e.privateKey, e.publicKey, e.power, e.generic)
 }
-
 
 func sessionCmpTest() bool {
 	p := bigFromHex("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024" +
@@ -70,28 +69,26 @@ func sessionCmpTest() bool {
 	bob := new(EntityDH)
 	bob.init(p, g, q)
 
-	if bytes.Compare(alice.getSessionKey(bob.publicNum), bob.getSessionKey(alice.publicNum)) != 0 {
+	if bytes.Equal(alice.getSessionKey(bob.publicKey), bob.getSessionKey(alice.publicKey)) {
 		return false
 	}
 	return true
 }
 
-
-type ClientC1 struct {
+type ClientAes struct {
 	dhEntity     EntityDH
 	symmetricKey []byte
 }
 
-func (c *ClientC1) init(p *big.Int, g *big.Int, q *big.Int) {
+func (c *ClientAes) init(p *big.Int, g *big.Int, q *big.Int) {
 	c.dhEntity.init(p, g, q)
 }
 
-
-func (c *ClientC1) generateSessionKey(pub *big.Int) {
+func (c *ClientAes) generateSessionKey(pub *big.Int) {
 	c.symmetricKey = c.dhEntity.getSessionKey(pub)
 }
 
-func (c ClientC1) encryptMsg(msg []byte) []byte {
+func (c ClientAes) encryptMsg(msg []byte) []byte {
 	block, err := aes.NewCipher(c.symmetricKey)
 	if err != nil {
 		log.Fatal("Error with aes initialization")
@@ -108,7 +105,7 @@ func (c ClientC1) encryptMsg(msg []byte) []byte {
 	return ciphertext
 }
 
-func (c ClientC1) decryptMsg(ciphertext []byte) []byte {
+func (c ClientAes) decryptMsg(ciphertext []byte) []byte {
 	block, err := aes.NewCipher(c.symmetricKey)
 	if err != nil {
 		log.Fatal("Error with aes initialization")
@@ -125,14 +122,13 @@ func (c ClientC1) decryptMsg(ciphertext []byte) []byte {
 		log.Fatal("ciphertext is not a multiple of the block size")
 	}
 	mode := cipher.NewCBCDecrypter(block, iv)
-	plaintext := make([]byte, len(ciphertext) - aes.BlockSize)
+	plaintext := make([]byte, len(ciphertext)-aes.BlockSize)
 	mode.CryptBlocks(ciphertext, plaintext)
 
 	return plaintext
 }
 
-
-func (c ClientC1) calcHmacSha256(msg []byte) []byte {
+func (c ClientAes) calcHmacSha256(msg []byte) []byte {
 	mac := hmac.New(sha256.New, c.symmetricKey)
 	mac.Write(msg)
 	return mac.Sum(nil)
@@ -143,14 +139,14 @@ func normalFlowTest() bool {
 	g := big.NewInt(2)
 	q := big.NewInt(0)
 
-	alice := new(ClientC1)
+	alice := new(ClientAes)
 	alice.init(p, g, q)
 
-	bob := new(ClientC1)
+	bob := new(ClientAes)
 	bob.init(p, g, q)
 
-	alice.generateSessionKey(bob.dhEntity.publicNum)
-	bob.generateSessionKey(alice.dhEntity.publicNum)
+	alice.generateSessionKey(bob.dhEntity.publicKey)
+	bob.generateSessionKey(alice.dhEntity.publicKey)
 
 	msg := []byte("exampleplaintext")
 
@@ -163,8 +159,7 @@ func normalFlowTest() bool {
 	return true
 }
 
-
-func (c ClientC1) melloryDecrypt(ciphertext []byte, seedNum int64) []byte {
+func (c ClientAes) melloryDecrypt(ciphertext []byte, seedNum int64) []byte {
 	seed := big.NewInt(seedNum)
 	h := sha256.New()
 	h.Write(seed.Bytes())
@@ -186,7 +181,7 @@ func (c ClientC1) melloryDecrypt(ciphertext []byte, seedNum int64) []byte {
 		log.Fatal("ciphertext is not a multiple of the block size")
 	}
 	mode := cipher.NewCBCDecrypter(block, iv)
-	plaintext := make([]byte, len(ciphertext) - aes.BlockSize)
+	plaintext := make([]byte, len(ciphertext)-aes.BlockSize)
 	mode.CryptBlocks(ciphertext, plaintext)
 
 	return plaintext
@@ -197,13 +192,13 @@ func mitmFlowTest() bool {
 	g := big.NewInt(2)
 	q := big.NewInt(0)
 
-	alice := new(ClientC1)
+	alice := new(ClientAes)
 	alice.init(p, g, q)
 
-	bob := new(ClientC1)
+	bob := new(ClientAes)
 	bob.init(p, g, q)
 
-	mellory := new(ClientC1)
+	mellory := new(ClientAes)
 
 	bob.generateSessionKey(p)
 	alice.generateSessionKey(p)
@@ -227,16 +222,16 @@ func g1FlowTest() bool {
 	g := big.NewInt(1)
 	q := big.NewInt(0)
 
-	alice := new(ClientC1)
+	alice := new(ClientAes)
 	alice.init(p, g, q)
 
-	bob := new(ClientC1)
+	bob := new(ClientAes)
 	bob.init(p, g, q)
 
-	mellory := new(ClientC1)
+	mellory := new(ClientAes)
 
-	alice.generateSessionKey(bob.dhEntity.publicNum)
-	bob.generateSessionKey(alice.dhEntity.publicNum)
+	alice.generateSessionKey(bob.dhEntity.publicKey)
+	bob.generateSessionKey(alice.dhEntity.publicKey)
 
 	msg := []byte("exampleplaintext")
 
@@ -254,19 +249,19 @@ func g1FlowTest() bool {
 
 func gpFlowTest() bool {
 	p := big.NewInt(25566665)
-	g:= big.NewInt(25566665)
-	q:= big.NewInt(0)
+	g := big.NewInt(25566665)
+	q := big.NewInt(0)
 
-	alice := new(ClientC1)
+	alice := new(ClientAes)
 	alice.init(p, g, q)
 
-	bob := new(ClientC1)
+	bob := new(ClientAes)
 	bob.init(p, g, q)
 
-	mellory := new(ClientC1)
+	mellory := new(ClientAes)
 
-	alice.generateSessionKey(bob.dhEntity.publicNum)
-	bob.generateSessionKey(alice.dhEntity.publicNum)
+	alice.generateSessionKey(bob.dhEntity.publicKey)
+	bob.generateSessionKey(alice.dhEntity.publicKey)
 
 	msg := []byte("exampleplaintext")
 
@@ -284,19 +279,19 @@ func gpFlowTest() bool {
 
 func gp1FlowTest() bool {
 	p := big.NewInt(25566665)
-	g:= big.NewInt(25566665-1)
-	q:= big.NewInt(0)
+	g := big.NewInt(25566665 - 1)
+	q := big.NewInt(0)
 
-	alice := new(ClientC1)
+	alice := new(ClientAes)
 	alice.init(p, g, q)
 
-	bob := new(ClientC1)
+	bob := new(ClientAes)
 	bob.init(p, g, q)
 
-	mellory := new(ClientC1)
+	mellory := new(ClientAes)
 
-	alice.generateSessionKey(bob.dhEntity.publicNum)
-	bob.generateSessionKey(alice.dhEntity.publicNum)
+	alice.generateSessionKey(bob.dhEntity.publicKey)
+	bob.generateSessionKey(alice.dhEntity.publicKey)
 
 	msg := []byte("exampleplaintext")
 
@@ -307,7 +302,7 @@ func gp1FlowTest() bool {
 		return false
 	}
 
-	if alice.dhEntity.publicNum.Cmp(g) == 0 && bob.dhEntity.publicNum.Cmp(g) == 0 {
+	if alice.dhEntity.publicKey.Cmp(g) == 0 && bob.dhEntity.publicKey.Cmp(g) == 0 {
 		if bytes.Compare(alice.decryptMsg(encryptedByBob), mellory.melloryDecrypt(encryptedByBob, 25566665-1)) != 0 {
 			return false
 		}
@@ -320,7 +315,7 @@ func gp1FlowTest() bool {
 	return true
 }
 
-func calculateH(p *big.Int, r *big.Int) *big.Int{
+func calculateH(p *big.Int, r *big.Int) *big.Int {
 	power := new(big.Int).Div(new(big.Int).Sub(p, big.NewInt(1)), r)
 
 	h := big.NewInt(1)
@@ -353,10 +348,10 @@ func smallSubGroupAttack() bool {
 		log.Fatal("empty factors")
 	}
 
-	eve := new(ClientC1)
+	eve := new(ClientAes)
 	eve.init(p, g, q)
 
-	bob := new(ClientC1)
+	bob := new(ClientAes)
 	bob.init(p, g, q)
 
 	var reducedModes, reducedBases []*big.Int
@@ -389,16 +384,16 @@ func smallSubGroupAttack() bool {
 		}
 	}
 
-	tmpMul := big.NewInt(1)
+	one := big.NewInt(1)
 	for i := int64(0); int(i) < len(factors); i++ {
 		if reducedModes == nil {
 			log.Fatal("Reduced modes is nil")
 		}
 		//fmt.Printf("ri = %d , bi = %d\n", reducedModes[i].Uint64(), reducedBases[i].Uint64())
-		tmpMul = new(big.Int).Mul(reducedModes[i], tmpMul)
+		one = new(big.Int).Mul(reducedModes[i], one)
 	}
 
-	if tmpMul.Cmp(q) != 1 { // (r1*r2*...*rn) <= q
+	if one.Cmp(q) != 1 { // (r1*r2*...*rn) <= q
 		return false
 	}
 
