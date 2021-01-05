@@ -7,6 +7,10 @@ import (
 	"math/big"
 )
 
+var BigZero = big.NewInt(0)
+var BigOne = big.NewInt(1)
+var BigTwo = big.NewInt(2)
+
 func genBigNum(max *big.Int) (n *big.Int, err error) {
 	x, err := rand.Int(rand.Reader, max)
 	if err != nil {
@@ -24,15 +28,22 @@ func bigFromHex(s string) *big.Int {
 	return n
 }
 
+func bigFromDec(s string) *big.Int {
+	n, success := new(big.Int).SetString(s, 10)
+	if success != true {
+		log.Panic("Fail in bigFromDec functions")
+		return nil
+	}
+	return n
+}
+
 func factorize(toFactor *big.Int, maxIndex int64) []*big.Int {
 	var factors []*big.Int
-	zero := big.NewInt(0)
-
 	for i := int64(2); i < maxIndex; i++ {
 		I := new(big.Int).SetInt64(i)
-		if new(big.Int).Mod(toFactor, I).Cmp(zero) == 0 {
+		if new(big.Int).Mod(toFactor, I).Cmp(BigZero) == 0 {
 			factors = append(factors, I)
-			for new(big.Int).Mod(toFactor, I).Cmp(zero) == 0 {
+			for new(big.Int).Mod(toFactor, I).Cmp(BigZero) == 0 {
 				toFactor = new(big.Int).Div(toFactor, I)
 			}
 		}
