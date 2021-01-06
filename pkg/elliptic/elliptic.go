@@ -8,6 +8,13 @@ import (
 	"sync"
 )
 
+var (
+	BigZero = big.NewInt(0)
+	BigOne = big.NewInt(1)
+	BigTwo = big.NewInt(2)
+	BigThree = big.NewInt(3)
+)
+
 // A Curve represents a short-form Weierstrass curve y^2 = x^3 + a*x + b.
 type Curve interface {
 	// Params returns the parameters for the curve.
@@ -43,15 +50,68 @@ func (curve *CurveParams) Params() *CurveParams {
 
 func (curve *CurveParams) IsOnCurve(x, y *big.Int) bool {
 	// y^2 = x^3 + a*x + b
-	panic("not implemented")
-	return false
+	yNew := new(big.Int).Mul(y, y)
+	yNew.Mod(yNew, curve.P)
+	return curve.getPolynomialValue(x).Cmp(yNew) == 0
+}
+
+// returns value of  x^3 + a*x + b
+func (curve *CurveParams) getPolynomialValue(x *big.Int) *big.Int {
+	x3 := new(big.Int).Mul(new(big.Int).Mul(x, x), x)
+	aX := new(big.Int).Mul(curve.A, x)
+	x3.Add(x3, aX.Add(aX, curve.B))
+	x3.Mod(x3, curve.P)
+	return x3
 }
 
 // Add takes two points (x1, y1) and (x2, y2) and returns their sum.
 // It is assumed that "point at infinity" is (0, 0).
 func (curve *CurveParams) Add(x1, y1, x2, y2 *big.Int) (x, y *big.Int) {
-	panic("not implemented")
-	return nil, nil
+
+	fraction := new(big.Int)
+
+	if x1.Cmp(BigZero) == 0 && y1.Cmp(BigZero) == 0 {
+		return x2, y2
+	}
+
+	if x2.Cmp(BigZero) == 0 && y2.Cmp(BigZero) == 0 {
+		return x1, y1
+	}
+
+	ix, iy := Inverse(curve, x2, y2)
+	if x1.Cmp(ix) == 0 && y1.Cmp(iy) == 0 {
+		return BigZero, BigZero
+	}
+
+	if x1.Cmp(x2) == 0 && y1.Cmp(y2) == 0 {
+		// (3*x1^2 + a) / 2*y1
+		dividend := new(big.Int).Mul(BigThree, new(big.Int).Mul(x1, x1))
+		dividend.Mod(dividend, curve.P)
+		dividend.Add(dividend, curve.A)
+		divider := new(big.Int).Mul(BigTwo, y1)
+		divider.ModInverse(divider, curve.P)
+
+		fraction = new(big.Int).Mul(dividend, divider)
+		fraction.Mod(fraction, curve.P)
+	} else {
+		//(y2 - y1) / (x2 - x1)
+		dividend := new(big.Int).Sub(y2, y1)
+		divider := new(big.Int).Sub(x2, x1)
+		divider.ModInverse(divider, curve.P)
+
+		fraction = new(big.Int).Mul(dividend, divider)
+		fraction.Mod(fraction, curve.P)
+	}
+
+	// fraction^2 - (x1 + x2)
+	x3 := new(big.Int).Sub(new(big.Int).Mul(fraction, fraction), new(big.Int).Add(x1, x2))
+	x3.Mod(x3, curve.P)
+
+	// fraction*(x1 - x3) - y1
+	y3 := new(big.Int).Sub(new(big.Int).Mul(fraction, new(big.Int).Sub(x1, x3)), y1)
+	y3.Mod(y3, curve.P)
+
+	return x3, y3
 }
 
 func (curve *CurveParams) Double(x1, y1 *big.Int) (x, y *big.Int) {
