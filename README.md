@@ -1,6 +1,6 @@
 # Attacks on Diffie-Hellman Protocols
 ## Description
-Just labs for education only.\
+The labs are for educational purposes.\
 The description can be found [here](https://gist.github.com/arkadiyt/5b33bed653ce1dc26e1df9c249d8919e).
 ## Tests for DH
 ### Run all tests
