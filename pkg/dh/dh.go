@@ -51,7 +51,7 @@ func (e EntityDH) debugPrint() {
 }
 
 func sessionMatchTest() bool {
-	p := bigFromHex("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024" +
+	p, err := bigFromHex("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024" +
 		"e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd" +
 		"3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec" +
 		"6f44c42e9a637ed6b0bff5cb6f406b7edee386bfb5a899fa5ae9f" +
@@ -59,6 +59,12 @@ func sessionMatchTest() bool {
 		"c55d39a69163fa8fd24cf5f83655d23dca3ad961c62f356208552" +
 		"bb9ed529077096966d670c354e4abc9804f1746c08ca237327fff" +
 		"fffffffffffff")
+
+	if err != nil {
+		log.Fatal(err)
+		return false
+	}
+
 	g := BigTwo
 	q := BigZero
 
@@ -134,7 +140,11 @@ func (c ClientAes) calcHmacSha256(msg []byte) []byte {
 }
 
 func normalFlowTest() bool {
-	p := bigFromHex("ffffffffffffffffffffffffffff")
+	p, err := bigFromHex("ffffffffffffffffffffffffffff")
+	if err != nil {
+		log.Fatal(err)
+		return false
+	}
 	g := BigTwo
 	q := BigZero
 
@@ -187,7 +197,11 @@ func (c ClientAes) melloryDecrypt(ciphertext []byte, seedNum int64) []byte {
 }
 
 func mitmFlowTest() bool {
-	p := bigFromHex("ffffffffffffffffffffffffffff")
+	p, err := bigFromHex("ffffffffffffffffffffffffffff")
+	if err != nil {
+		log.Fatal(err)
+		return false
+	}
 	g := BigTwo
 	q := BigZero
 
@@ -362,7 +376,7 @@ func f(y *big.Int, k *big.Int, p *big.Int) *big.Int {
 
 func calculateBoundsN(k *big.Int, p *big.Int) *big.Int {
 	N := BigZero
-	for i := BigZero; i.Cmp(k) == -1 /* i < k */; i = new(big.Int).Add(i, BigOne) {
+	for i := BigZero; i.Cmp(k) == -1 /* i < k */ ; i = new(big.Int).Add(i, BigOne) {
 		N = new(big.Int).Add(N, f(i, k, p))
 	}
 	//N is then derived from f - take the mean of all possible outputs of f and multiply it by a small constant, e.g. 4
@@ -377,9 +391,9 @@ func tameKangaroo(p *big.Int, g *big.Int, b *big.Int, k *big.Int) (*big.Int, *bi
 	yT := new(big.Int).Exp(g, b, p) // g^b
 
 	log.Printf("N = %s\n", N.String())
-	for i := BigZero; i.Cmp(N) == -1 /* i < N*/; i = new(big.Int).Add(i, BigOne) {
+	for i := BigZero; i.Cmp(N) == -1 /* i < N*/ ; i = new(big.Int).Add(i, BigOne) {
 		//log.Printf("i = %s, N = %s\n", i.String(), N.String())
-		xT = new(big.Int).Add(xT, f(yT, k, p))                                       // xT + f(yT)
+		xT = new(big.Int).Add(xT, f(yT, k, p))                                              // xT + f(yT)
 		yT = new(big.Int).Mod(new(big.Int).Mul(yT, new(big.Int).Exp(g, f(yT, k, p), p)), p) // yT * g^f(yT)
 	}
 	if yT.Cmp(new(big.Int).Exp(g, new(big.Int).Add(b, xT), p)) != 0 { // yT = g^(b + xT)
@@ -393,7 +407,7 @@ func tameKangaroo(p *big.Int, g *big.Int, b *big.Int, k *big.Int) (*big.Int, *bi
 func catchKangaroo(p *big.Int, g *big.Int, y *big.Int, a *big.Int, b *big.Int) (m *big.Int) {
 	log.Printf("Trying to calculate K\n")
 	k := calculateK(a, b)
-	log.Printf("p = %s, g = %s, y = %s, a = %s, b = %s, k = %s\n", p.String(), g.String(), y.String(), a.String(), b.String(),  k.String())
+	log.Printf("p = %s, g = %s, y = %s, a = %s, b = %s, k = %s\n", p.String(), g.String(), y.String(), a.String(), b.String(), k.String())
 	log.Printf("Trying to tame Kangaroo\n")
 	xT, yT := tameKangaroo(p, g, b, k)
 	log.Printf("tame xT = %s, yT = %s\n", xT.String(), yT.String())
@@ -404,7 +418,7 @@ func catchKangaroo(p *big.Int, g *big.Int, y *big.Int, a *big.Int, b *big.Int) (
 	// xW < b - a + xT
 	for xW.Cmp(new(big.Int).Add(new(big.Int).Sub(b, a), xT)) == -1 {
 		//log.Printf("wild xW = %s, yW = %s, yT = %s ---- while %s \n", xW.String(), yW.String(), new(big.Int).Add(b, new(big.Int).Sub(xT, xW)).String(), new(big.Int).Add(new(big.Int).Sub(b, a), xT).String())
-		xW = new(big.Int).Add(xW, f(yW, k, p)) // xW = xW + f(yW)  f(y, k) = 2^(y mod k)
+		xW = new(big.Int).Add(xW, f(yW, k, p))                                              // xW = xW + f(yW)  f(y, k) = 2^(y mod k)
 		yW = new(big.Int).Mod(new(big.Int).Mul(yW, new(big.Int).Exp(g, f(yW, k, p), p)), p) // yW = yW * g^f(yW)
 		// yW == yT
 		if yW.Cmp(yT) == 0 {
@@ -465,7 +479,7 @@ func catchingKangaroosAttack(p *big.Int, g *big.Int, q *big.Int, toFactor *big.I
 	}
 
 	y := bob.dhEntity.publicKey
-	gNew := new(big.Int).Exp(g, r, p) // g' = g^r
+	gNew := new(big.Int).Exp(g, r, p)                                                             // g' = g^r
 	yNew := new(big.Int).Mod(new(big.Int).Mul(y, new(big.Int).Exp(g, new(big.Int).Neg(n), p)), p) // y' = y * g^-n
 	a := BigZero
 	b := new(big.Int).Div(new(big.Int).Sub(q, BigOne), r) // [0, (q-1)/r]
@@ -475,7 +489,7 @@ func catchingKangaroosAttack(p *big.Int, g *big.Int, q *big.Int, toFactor *big.I
 		b = new(big.Int).SetUint64(1048576) // [0, 2^20]
 	}
 	m := catchKangaroo(p, gNew, yNew, a, b)
-	if m == nil{
+	if m == nil {
 		log.Fatal("Problem with catching kangaroo alg")
 		return false
 	}
