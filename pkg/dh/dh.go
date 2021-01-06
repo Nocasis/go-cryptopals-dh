@@ -216,7 +216,7 @@ func mitmFlowTest() bool {
 	return true
 }
 
-func maliciousParameterFlowTest(p *big.Int, g *big.Int) bool {
+func maliciousParameterFlowTest(p *big.Int, g *big.Int) (attackSuccess bool) {
 	q := BigZero
 
 	alice := new(ClientAes)
@@ -235,29 +235,23 @@ func maliciousParameterFlowTest(p *big.Int, g *big.Int) bool {
 	encryptedByAlice := alice.encryptMsg(msg)
 	encryptedByBob := bob.encryptMsg(msg)
 
+	if bytes.Compare(alice.decryptMsg(encryptedByBob), bob.decryptMsg(encryptedByAlice)) != 0 {
+		return false
+	}
+
 	if g.Cmp(BigOne) == 0 {
-		if bytes.Compare(alice.decryptMsg(encryptedByBob), bob.decryptMsg(encryptedByAlice)) != 0 {
-			return false
-		}
 		if bytes.Compare(alice.decryptMsg(encryptedByBob), mellory.melloryDecrypt(encryptedByBob, 1)) != 0 {
 			return false
 		}
 	}
 
 	if g.Cmp(p) == 0 {
-		if bytes.Compare(alice.decryptMsg(encryptedByBob), bob.decryptMsg(encryptedByAlice)) != 0 {
-			return false
-		}
 		if bytes.Compare(alice.decryptMsg(encryptedByBob), mellory.melloryDecrypt(encryptedByBob, 0)) != 0 {
 			return false
 		}
 	}
 
 	if g.Cmp(new(big.Int).Sub(p, BigOne)) == 0 {
-		if bytes.Compare(alice.decryptMsg(encryptedByBob), bob.decryptMsg(encryptedByAlice)) != 0 {
-			return false
-		}
-
 		if alice.dhEntity.publicKey.Cmp(g) == 0 && bob.dhEntity.publicKey.Cmp(g) == 0 {
 			if bytes.Compare(alice.decryptMsg(encryptedByBob), mellory.melloryDecrypt(encryptedByBob, 25566665-1)) != 0 {
 				return false
@@ -268,7 +262,6 @@ func maliciousParameterFlowTest(p *big.Int, g *big.Int) bool {
 			}
 		}
 	}
-
 	return true
 }
 
@@ -362,6 +355,7 @@ func calculateK(a *big.Int, b *big.Int) *big.Int {
 	return new(big.Int).SetUint64(uint64(tmpLeft + tmpRight - 2))
 }
 
+// f(y) function from this link https://toadstyle.org/cryptopals/58.txt
 func f(y *big.Int, k *big.Int, p *big.Int) *big.Int {
 	return new(big.Int).Exp(BigTwo, new(big.Int).Mod(y, k), p) // 2^(y mod k)
 }
