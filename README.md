@@ -1,6 +1,9 @@
-# go-cryptopals-dh
-## Как запускать тесты
-Запустить тесты можно так:
+# Attacks on Diffie-Hellman Protocols
+## Description
+The labs are for educational purposes.\
+Their description can be found [here](https://gist.github.com/arkadiyt/5b33bed653ce1dc26e1df9c249d8919e).
+## Tests for DH
+### Run all tests
 ```bash
 go test ./pkg/dh
 ```
@@ -31,9 +34,17 @@ go test ./pkg/dh -run TestCatchingKangaroosAttackQuick
 ```bash
 go test ./pkg/dh -timeout 1440m -v -run TestCatchingKangaroosAttackLong
 ```
+
 ## Tests for ECDH
-### Run tests for elleptic operations. All EC basic operations can be found [here](https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication).
-#### Copied from [this](https://github.com/dnkolegov/dhpals/tree/master/elliptic) repository
+### Run tests for elliptic operations
+#### Copied patterns and tests from [this](https://github.com/dnkolegov/dhpals/tree/master/elliptic) repository
+#### Pseudocode for basic EC operation can be found [here](https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication).
 ```bash
 go test ./pkg/elliptic
 ```
+
+### Invalid-Curve Attack
+```bash
+go test ./pkg/elliptic -run TestECDHInvalidCurveAttack
+```
+
