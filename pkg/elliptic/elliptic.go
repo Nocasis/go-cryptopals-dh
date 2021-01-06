@@ -119,8 +119,22 @@ func (curve *CurveParams) Double(x1, y1 *big.Int) (x, y *big.Int) {
 }
 
 func (curve *CurveParams) ScalarMult(xIn, yIn *big.Int, k []byte) (x, y *big.Int) {
-	panic("not implemented")
-	return nil, nil
+	if len(k) == 0 {
+		return x, y
+	}
+	K := new(big.Int).SetBytes(k)
+	x = BigZero
+	y = BigZero
+
+	for K.Cmp(BigZero) > 0 {
+		if K.Bytes()[len(K.Bytes())-1]&0x01 != 0 {
+			x, y = curve.Add(x, y, xIn, yIn)
+		}
+		xIn, yIn = curve.Double(xIn, yIn)
+		K.Rsh(K, 1)
+	}
+
+	return x, y
 }
 
 func (curve *CurveParams) ScalarBaseMult(k []byte) (x, y *big.Int) {

@@ -32,7 +32,7 @@ go test ./pkg/dh -run TestCatchingKangaroosAttackQuick
 go test ./pkg/dh -timeout 1440m -v -run TestCatchingKangaroosAttackLong
 ```
 ## Tests for ECDH
-### Run tests for elleptic operations
+### Run tests for elleptic operations. All EC basic operations can be found [here](https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication).
 #### Copied from [this](https://github.com/dnkolegov/dhpals/tree/master/elliptic) repository
 ```bash
 go test ./pkg/elliptic
