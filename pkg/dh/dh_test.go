@@ -7,7 +7,7 @@ import (
 )
 
 func TestEasyDHAttack(t *testing.T) {
-	if !sessionCmpTest() {
+	if !sessionMatchTest() {
 		t.Error("session keys is not equal")
 	}
 
@@ -19,16 +19,16 @@ func TestEasyDHAttack(t *testing.T) {
 		t.Error("mitm attack failed")
 	}
 
-	if !g1FlowTest() {
-		t.Error("g==1 attack failed")
+	if !maliciousParameterFlowTest(bigFromHex("ffffffffffffffffffffffffffff"), BigOne) {
+		t.Error("g = 1 attack failed")
 	}
 
-	if !gpFlowTest() {
-		t.Error("g==p attack failed")
+	if !maliciousParameterFlowTest(big.NewInt(25566665), big.NewInt(25566665)) {
+		t.Error("g = p attack failed")
 	}
 
-	if !gp1FlowTest() {
-		t.Error("g==p-1 attack failed")
+	if !maliciousParameterFlowTest(big.NewInt(25566665), big.NewInt(25566665 - 1)) {
+		t.Error("g = p-1 attack failed")
 	}
 }
 

@@ -50,7 +50,7 @@ func (e EntityDH) debugPrint() {
 	log.Printf("privateKey: %v, publicKey: %v, power: %v, generic: %v.\n", e.privateKey, e.publicKey, e.power, e.generic)
 }
 
-func sessionCmpTest() bool {
+func sessionMatchTest() bool {
 	p := bigFromHex("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024" +
 		"e088a67cc74020bbea63b139b22514a08798e3404ddef9519b3cd" +
 		"3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec" +
@@ -69,9 +69,9 @@ func sessionCmpTest() bool {
 	bob.init(p, g, q)
 
 	if bytes.Equal(alice.getSessionKey(bob.publicKey), bob.getSessionKey(alice.publicKey)) {
-		return false
+		return true
 	}
-	return true
+	return false
 }
 
 type ClientAes struct {
@@ -216,9 +216,7 @@ func mitmFlowTest() bool {
 	return true
 }
 
-func g1FlowTest() bool {
-	p := bigFromHex("ffffffffffffffffffffffffffff")
-	g := BigOne
+func maliciousParameterFlowTest(p *big.Int, g *big.Int) bool {
 	q := BigZero
 
 	alice := new(ClientAes)
@@ -237,77 +235,37 @@ func g1FlowTest() bool {
 	encryptedByAlice := alice.encryptMsg(msg)
 	encryptedByBob := bob.encryptMsg(msg)
 
-	if bytes.Compare(alice.decryptMsg(encryptedByBob), bob.decryptMsg(encryptedByAlice)) != 0 {
-		return false
-	}
-	if bytes.Compare(alice.decryptMsg(encryptedByBob), mellory.melloryDecrypt(encryptedByBob, 1)) != 0 {
-		return false
-	}
-	return true
-}
-
-func gpFlowTest() bool {
-	p := big.NewInt(25566665)
-	g := big.NewInt(25566665)
-	q := BigZero
-
-	alice := new(ClientAes)
-	alice.init(p, g, q)
-
-	bob := new(ClientAes)
-	bob.init(p, g, q)
-
-	mellory := new(ClientAes)
-
-	alice.generateSessionKey(bob.dhEntity.publicKey)
-	bob.generateSessionKey(alice.dhEntity.publicKey)
-
-	msg := []byte("exampleplaintext")
-
-	encryptedByAlice := alice.encryptMsg(msg)
-	encryptedByBob := bob.encryptMsg(msg)
-
-	if bytes.Compare(alice.decryptMsg(encryptedByBob), bob.decryptMsg(encryptedByAlice)) != 0 {
-		return false
-	}
-	if bytes.Compare(alice.decryptMsg(encryptedByBob), mellory.melloryDecrypt(encryptedByBob, 0)) != 0 {
-		return false
-	}
-	return true
-}
-
-func gp1FlowTest() bool {
-	p := big.NewInt(25566665)
-	g := big.NewInt(25566665 - 1)
-	q := BigZero
-
-	alice := new(ClientAes)
-	alice.init(p, g, q)
-
-	bob := new(ClientAes)
-	bob.init(p, g, q)
-
-	mellory := new(ClientAes)
-
-	alice.generateSessionKey(bob.dhEntity.publicKey)
-	bob.generateSessionKey(alice.dhEntity.publicKey)
-
-	msg := []byte("exampleplaintext")
-
-	encryptedByAlice := alice.encryptMsg(msg)
-	encryptedByBob := bob.encryptMsg(msg)
-
-	if bytes.Compare(alice.decryptMsg(encryptedByBob), bob.decryptMsg(encryptedByAlice)) != 0 {
-		return false
-	}
-
-	if alice.dhEntity.publicKey.Cmp(g) == 0 && bob.dhEntity.publicKey.Cmp(g) == 0 {
-		if bytes.Compare(alice.decryptMsg(encryptedByBob), mellory.melloryDecrypt(encryptedByBob, 25566665-1)) != 0 {
+	if g.Cmp(BigOne) == 0 {
+		if bytes.Compare(alice.decryptMsg(encryptedByBob), bob.decryptMsg(encryptedByAlice)) != 0 {
 			return false
 		}
-	} else {
 		if bytes.Compare(alice.decryptMsg(encryptedByBob), mellory.melloryDecrypt(encryptedByBob, 1)) != 0 {
 			return false
+		}
+	}
+
+	if g.Cmp(p) == 0 {
+		if bytes.Compare(alice.decryptMsg(encryptedByBob), bob.decryptMsg(encryptedByAlice)) != 0 {
+			return false
+		}
+		if bytes.Compare(alice.decryptMsg(encryptedByBob), mellory.melloryDecrypt(encryptedByBob, 0)) != 0 {
+			return false
+		}
+	}
+
+	if g.Cmp(new(big.Int).Sub(p, BigOne)) == 0 {
+		if bytes.Compare(alice.decryptMsg(encryptedByBob), bob.decryptMsg(encryptedByAlice)) != 0 {
+			return false
+		}
+
+		if alice.dhEntity.publicKey.Cmp(g) == 0 && bob.dhEntity.publicKey.Cmp(g) == 0 {
+			if bytes.Compare(alice.decryptMsg(encryptedByBob), mellory.melloryDecrypt(encryptedByBob, 25566665-1)) != 0 {
+				return false
+			}
+		} else {
+			if bytes.Compare(alice.decryptMsg(encryptedByBob), mellory.melloryDecrypt(encryptedByBob, 1)) != 0 {
+				return false
+			}
 		}
 	}
 
