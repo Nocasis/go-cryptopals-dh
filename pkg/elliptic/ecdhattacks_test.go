@@ -1,9 +1,11 @@
 package elliptic
 
 import (
+	"crypto/rand"
 	"fmt"
 	"math/big"
 	"testing"
+	"github.com/Nocasis/go-cryptopals-dh/pkg/x128"
 )
 
 func TestECDHInvalidCurveAttack(t *testing.T) {
@@ -38,4 +40,79 @@ func TestECDHInvalidCurveAttack(t *testing.T) {
 	if !isKeyCorrect(privateKey.Bytes()) {
 		t.Fatalf("%s: wrong private key was found in the invalid curve attack", t.Name())
 	}
+}
+
+
+func TestCurvesP128AndX128(t *testing.T) {
+	p128 := P128()
+
+	for i := 0; i < 1000; i++ {
+		k, _ := rand.Int(rand.Reader, p128.Params().P)
+		kx, ky := p128.ScalarBaseMult(k.Bytes())
+
+		if !p128.IsOnCurve(kx, ky) {
+			t.Fatalf("%s: the point is not on the p128 curve", t.Name())
+		}
+
+		// u = x - 178
+		// v = y
+		ku := x128.ScalarBaseMult(k.Bytes())
+		kv := new(big.Int).Set(ky)
+
+		if !x128.IsOnCurve(ku, kv) {
+			t.Fatalf("%s: the point is not on the x128 curve", t.Name())
+		}
+
+		if new(big.Int).Sub(kx, big.NewInt(178)).Cmp(ku) != 0 {
+			t.Errorf("%s: comparison failed on (%d, %d, %d)", t.Name(), k, ku, kx)
+		}
+	}
+}
+
+type ecKangarooTest struct {
+	k, b string
+}
+
+var ecKangarooTests = []ecKangarooTest{
+	{"10", "100"},
+	{"12130", "17000"},
+	{"12132880", "22132880"},
+}
+
+func TestECKangarooAlgorithm(t *testing.T) {
+	curve := P128()
+	a := new(big.Int).Set(BigZero)
+	bx, by := curve.Params().Gx, curve.Params().Gy
+	for _, e := range ecKangarooTests {
+		k, _ := new(big.Int).SetString(e.k, 10)
+		b, _ := new(big.Int).SetString(e.b, 10)
+
+		x, y := curve.ScalarBaseMult(k.Bytes())
+		kk, err := catchKangarooOnCurve(curve, bx, by, x, y, a, b)
+		if err != nil {
+			t.Fatalf("%s: %s", t.Name(), err)
+		}
+		if kk.Cmp(k) != 0 {
+			t.Fatalf("%s: (%d, %d) failed", t.Name(), k, b)
+		}
+	}
+}
+
+func TestTwistAttack(t *testing.T) {
+	v, _ := new(big.Int).SetString("85518893674295321206118380980485522083", 10)
+	u := new(big.Int).SetInt64(4)
+
+	if !x128.IsOnCurve(u, v) {
+		t.Fatalf("%s: the point is not on the x128 curve", t.Name())
+	}
+
+	ecdh, isKeyCorrect, getPublic, vulnOracle := newX128TwistAttackOracle()
+
+	privateKey := runECDHTwistAttack(ecdh, getPublic, vulnOracle)
+
+	if !isKeyCorrect(privateKey.Bytes()) {
+		t.Fatalf("%s: wrong private key was found in the sugbroup attack", t.Name())
+	}
+
+	fmt.Print(privateKey)
 }
