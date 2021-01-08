@@ -57,3 +57,7 @@ go test ./pkg/x128 -run TestCswap
 ```bash
 go test ./pkg/x128 -run TestBasicLadder
 ```
+```bash
+go test ./pkg/elliptic -v -run TestCurvesP128AndX128 
+```
+
