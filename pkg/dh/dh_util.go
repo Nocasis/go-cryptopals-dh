@@ -3,8 +3,13 @@ package dh
 import (
 	"crypto/rand"
 	"fmt"
-	"log"
 	"math/big"
+)
+
+var (
+	BigZero = big.NewInt(0)
+	BigOne = big.NewInt(1)
+	BigTwo = big.NewInt(2)
 )
 
 func genBigNum(max *big.Int) (n *big.Int, err error) {
@@ -15,24 +20,29 @@ func genBigNum(max *big.Int) (n *big.Int, err error) {
 	return x, nil
 }
 
-func bigFromHex(s string) *big.Int {
+func bigFromHex(s string) (*big.Int, error) {
 	n, success := new(big.Int).SetString(s, 16)
 	if success != true {
-		log.Panic("Fail in bigFromHex functions")
-		return nil
+		return nil, fmt.Errorf("error: bigFromHex returned unsuccess flag. bigFromHex(%s)", s)
 	}
-	return n
+	return n, nil
+}
+
+func bigFromDec(s string) (*big.Int, error) {
+	n, success := new(big.Int).SetString(s, 10)
+	if success != true {
+		return nil, fmt.Errorf("error: bigFromDec returned unsuccess flag. bigFromDec(%s)", s)
+	}
+	return n, nil
 }
 
 func factorize(toFactor *big.Int, maxIndex int64) []*big.Int {
 	var factors []*big.Int
-	zero := big.NewInt(0)
-
 	for i := int64(2); i < maxIndex; i++ {
 		I := new(big.Int).SetInt64(i)
-		if new(big.Int).Mod(toFactor, I).Cmp(zero) == 0 {
+		if new(big.Int).Mod(toFactor, I).Cmp(BigZero) == 0 {
 			factors = append(factors, I)
-			for new(big.Int).Mod(toFactor, I).Cmp(zero) == 0 {
+			for new(big.Int).Mod(toFactor, I).Cmp(BigZero) == 0 {
 				toFactor = new(big.Int).Div(toFactor, I)
 			}
 		}
