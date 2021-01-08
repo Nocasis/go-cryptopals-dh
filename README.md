@@ -48,3 +48,12 @@ go test ./pkg/elliptic
 go test ./pkg/elliptic -run TestECDHInvalidCurveAttack
 ```
 
+### Test cswap operation of The Montgomery curve
+```bash
+go test ./pkg/x128 -run TestCswap
+```
+
+### Test the Montgomery ladder
+```bash
+go test ./pkg/x128 -run TestBasicLadder
+```
