@@ -37,11 +37,11 @@ func ScalarMult(in *big.Int, k []byte) *big.Int {
 func IsOnCurve(u, v *big.Int) bool {
 	vNew := new(big.Int).Mul(v, v)
 	vNew.Mod(vNew, P)
-	return getPolynomialValue(u).Cmp(vNew) == 0
+	return GetPolynomialValue(u).Cmp(vNew) == 0
 }
 
 // returns value of v^2 = u^3 + A*u^2 + u
-func getPolynomialValue(x *big.Int) *big.Int {
+func GetPolynomialValue(x *big.Int) *big.Int {
 	x2 := new(big.Int).Mul(x, x)
 	x3 := new(big.Int).Mul(x2, x)
 	aX2 := new(big.Int).Mul(A, x2)
