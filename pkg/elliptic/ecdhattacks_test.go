@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"testing"
+
 	"github.com/Nocasis/go-cryptopals-dh/pkg/x128"
 )
 
