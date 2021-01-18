@@ -364,7 +364,7 @@ func smallSubGroupAttack(p *big.Int, g *big.Int, q *big.Int, toFactor *big.Int) 
 
 // Alg from this doc https://arxiv.org/pdf/0812.0789.pdf
 func calculateK(a *big.Int, b *big.Int) *big.Int {
-	tmpLeft := math.Log2(float64(new(big.Int).Sub(b, a).Uint64()))
+	tmpLeft := math.Log2(float64(new(big.Int).Sqrt(new(big.Int).Sub(b, a)).Uint64()))
 	tmpRight := math.Log2(tmpLeft)
 	return new(big.Int).SetUint64(uint64(tmpLeft + tmpRight - 2))
 }
@@ -485,16 +485,16 @@ func catchingKangaroosAttack(p *big.Int, g *big.Int, q *big.Int, toFactor *big.I
 	b := new(big.Int).Div(new(big.Int).Sub(q, BigOne), r) // [0, (q-1)/r]
 
 	// if we take small q
-	if b.Cmp(BigZero) == 0 {
-		b = new(big.Int).SetUint64(1048576) // [0, 2^20]
-	}
+	//if b.Cmp(BigZero) == 0 {
+	//	b = new(big.Int).SetUint64(1048576) // [0, 2^20]
+	//}
 	m := catchKangaroo(p, gNew, yNew, a, b)
 	if m == nil {
 		log.Fatal("Problem with catching kangaroo alg")
 		return false
 	}
 
-	calculatedPrivateKey := new(big.Int).Sub(n, new(big.Int).Mul(m, r)) // pkey = n - m*r
+	calculatedPrivateKey := new(big.Int).Add(n, new(big.Int).Mul(m, r)) // pkey = n + m*r
 	log.Printf("privateKey = %s, calculatedPrivateKey = %s\n", bob.dhEntity.privateKey.String(), calculatedPrivateKey.String())
 	if bob.dhEntity.privateKey.Cmp(calculatedPrivateKey) == 0 {
 		return true
