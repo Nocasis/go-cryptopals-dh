@@ -63,6 +63,12 @@ go test ./pkg/x128 -run TestBasicLadder
 ```bash
 go test ./pkg/elliptic -v -run TestCurvesP128AndX128 
 ```
+### Insecure Twists Attack
+
+```bash
+go test ./pkg/elliptic -timeout 50h -v -run TestTwistAttack
+```
+
 
 ### Run TwistAttack
 ```
