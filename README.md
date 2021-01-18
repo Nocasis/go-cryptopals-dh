@@ -65,8 +65,7 @@ go test ./pkg/elliptic -v -run TestCurvesP128AndX128
 ```
 
 ### Run TwistAttack
-
 ```
 ```bash
-go test ./pkg/elliptic -v -run TestTwistAttack 
+go test ./pkg/elliptic -timeout 1440m -v -run TestTwistAttack 
 ```
