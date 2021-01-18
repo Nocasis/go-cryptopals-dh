@@ -66,12 +66,5 @@ go test ./pkg/elliptic -v -run TestCurvesP128AndX128
 ### Insecure Twists Attack
 
 ```bash
-go test ./pkg/elliptic -timeout 50h -v -run TestTwistAttack
-```
-
-
-### Run TwistAttack
-```
-```bash
-go test ./pkg/elliptic -timeout 1440m -v -run TestTwistAttack 
+go test ./pkg/elliptic -timeout 3h -v -run TestTwistAttack
 ```
