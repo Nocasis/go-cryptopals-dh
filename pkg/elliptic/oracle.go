@@ -1,13 +1,13 @@
 package elliptic
 
-
 import (
 	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"fmt"
-	"github.com/Nocasis/go-cryptopals-dh/pkg/x128"
 	"math/big"
+
+	"github.com/Nocasis/go-cryptopals-dh/pkg/x128"
 )
 
 const (
